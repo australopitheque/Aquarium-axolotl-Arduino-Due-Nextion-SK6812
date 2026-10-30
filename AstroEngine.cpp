@@ -26,7 +26,15 @@ double getEpsilon(double n, double dEps) {
 }
 
 // --- FONCTION DST (Heure d'été/hiver) ---
+// INTERRUPTEUR 3 POSITIONS INTÉGRÉ : pendant l'heure répétée d'octobre
+// (2h-3h vécues deux fois), la règle calendaire ne peut PAS distinguer les
+// deux passages (mêmes entrées -> même sortie 1). lastDstState est la mémoire
+// faisant foi : si le régime est déjà appliqué, on court-circuite le capteur.
 int getDSTOffset(DateTime d) {
+  if (lastDstState != -1 &&
+      d.month() == 10 && d.dayOfTheWeek() == 0 && d.day() >= 25 && d.hour() < 3) {
+    return lastDstState;   // fenêtre ambiguë : l'interrupteur fait foi
+  }
   int m = d.month();
   int day = d.day();
   int h = d.hour();

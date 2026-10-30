@@ -22,6 +22,7 @@ int lastSentFactor = -1;
 // --- FLAGS ---
 bool pendingRTCUpdate = false;
 bool pendingAstroUpdate = false;
+int lastDstState = -1;   // ← AJOUT : mémoire du régime DST (0 ou 1), -1 = pas encore synchronisé
 
 // ---- DEMO ---
 bool demoMode = false;

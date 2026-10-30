@@ -172,6 +172,7 @@ void processCommand(uint8_t* buf, size_t len) {
   // 5. UTC & DST
   else if (len == 7 && memcmp(buf, "TZ_AUTO", 7) == 0) {
     isAutoMode = !isAutoMode;
+    lastDstState = -1;  // resynchronisation sans décalage au prochain tick
     needRefresh = true;
   } else if (len == 6 && memcmp(buf, "TZ_INC", 6) == 0) {
     if (!isAutoMode) {
@@ -193,7 +194,7 @@ void processCommand(uint8_t* buf, size_t len) {
   }
   // 6. ENREGISTREMENT (Les fonctions cruciales)
   else if (len == 8 && memcmp(buf, "SAVE_RTC", 8) == 0) {
-    rtc.adjust(now);                  // Écriture immédiate dans le RTC
+    pendingRTCUpdate = true;          // l'écriture passera par la loop, gardée contre le mode démo si ont fait savertc pendant
     manualOffset = editManualOffset;  // Validation du fuseau
     pendingAstroUpdate = true;
     needRefresh = true;

@@ -35,6 +35,7 @@ extern int lastSentFactor;
 
 extern bool pendingRTCUpdate;
 extern bool pendingAstroUpdate;
+extern int lastDstState;
 
 // --- VARIABLES EXTERNES (Données Astro) ---
 extern double noonLocal;
@@ -70,6 +71,7 @@ extern double moonAzimuthTable[1441];
 void computeSunChannel();
 void computeMoonChannel();
 void updateLedsSmoothly();
+
 // --- PROTOTYPES DES FONCTIONS ---
 // Fonctions de Communication et Système
 void sendNextion(String cmd);

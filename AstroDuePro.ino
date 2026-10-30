@@ -1,5 +1,5 @@
 /*
-  AstroDue V5.9.5.5
+  AstroDue V5.9.5.6
   - Firmware Ultimate RGBW (Digital)
   Plateforme : Arduino Due (SAM3X8E)
   Ecran : Nextion HMI (Serial1)
@@ -71,7 +71,6 @@
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 float currentTemp = 0.0;
-unsigned long lastTempRequest = 0;
 
 // --- CONFIGURATION EEPROM EXTERNE Sur RTC (I2C) ---
 #define EEPROM_MIN_ADDR 0x50  // Adresse I2C minimale (souvent 0x50 pour les 24C32/24C256)
@@ -449,9 +448,10 @@ void setup() {
   if (rtc.lostPower()) {
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
-  calculateAstroData();  // Calcule levers/couchers et seasonalFactor
-  checkRelayAndLeds();   // Calcule les couleurs LED initiales et met à jour lastSentFactor
-  refreshScreen();       // Envoie tout au Nextion (t_pwr sera juste !)
+  calculateAstroData();              // Calcule levers/couchers et seasonalFactor
+  lastDstState = getDSTOffset(now);  //  état DST de départ
+  checkRelayAndLeds();               // Calcule les couleurs LED initiales et met à jour lastSentFactor
+  refreshScreen();                   // Envoie tout au Nextion (t_pwr sera juste !)
   // 7. Sonde de température
   sensors.begin();
   sensors.setWaitForConversion(false);
@@ -495,6 +495,24 @@ void loop() {
     lastHour = now.hour();
   } else if (now.hour() != lastHour) {
     lastHour = now.hour();
+    // --- AUTO-DST : le RTC tourne en temps continu, le basculement de getDSTOffset()
+    // se produit exactement à l'instant de la transition -> on recale l'horloge tout seul.
+    // interrupteur 3 positions déjà intégré au capteur du statut DST
+    if (isAutoMode) {
+      int newDst = getDSTOffset(now);
+      if (lastDstState == -1) {
+        lastDstState = newDst;              // premier positionnement, rien à décaler
+      } else if (newDst != lastDstState) {  //  déjà appliqué ?
+        int delta = newDst - lastDstState;  // +1 printemps / -1 automne
+        now = now + TimeSpan(0, delta, 0, 0);
+        rtc.adjust(now);
+        lastDstState = newDst;  // interrupteur = régime appliqué
+        Serial.print(F("Transition DST : RTC recale de "));
+        Serial.print(delta);
+        Serial.println(F(" h"));
+      }
+    }
+
     calculateAstroData();
     Serial.println(F("Calcul horaire effectué."));
   }
@@ -716,12 +734,13 @@ void computeSunChannel() {
       G -= W;
       B -= W;
     } else {
-      // CRÉPUSCULE : Halo orange puis Heure Bleue
-      double warm = exp(-pow((h + 2.0) / 1.6, 2));  // Pic orange à -2°
-      double blue = exp(-pow((h + 4.8) / 1.9, 2));  // Pic bleu à -4.8°
-      R = 140.0 * warm + 30.0 * blue;
-      G = 60.0 * warm + 60.0 * blue;
-      B = 17.0 * warm + 170.0 * blue;
+      // CRÉPUSCULE : halo chaud puis heure bleue, AVEC décroissance de luminance
+      double warm = exp(-pow((h + 2.0) / 1.6, 2));  // pic orange vers -2°
+      double blue = exp(-pow((h + 4.8) / 1.9, 2));  // pic bleu vers -4.8°
+      double duskDim = exp((h + 0.5) / 1.8);        //  ciel qui s'éteint progressivement
+      R = (140.0 * warm + 30.0 * blue) * duskDim;
+      G = (60.0 * warm + 60.0 * blue) * duskDim;
+      B = (17.0 * warm + 170.0 * blue) * duskDim;
       W = 0;
     }
 
