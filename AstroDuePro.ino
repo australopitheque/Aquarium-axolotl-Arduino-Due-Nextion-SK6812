@@ -1,5 +1,5 @@
 /*
-  AstroDue V5.9.5.6
+  AstroDue V5.9.5.7
   - Firmware Ultimate RGBW (Digital)
   Plateforme : Arduino Due (SAM3X8E)
   Ecran : Nextion HMI (Serial1)
